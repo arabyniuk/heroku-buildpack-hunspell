@@ -1,0 +1,50 @@
+#!/bin/bash
+
+indent() {
+  sed -u 's/^/       /'
+}
+
+echo "-----> Install Hunspell"
+
+BUILD_DIR=$1
+CACHE_DIR=$2
+VENDOR_DIR="$BUILD_DIR/vendor"
+INSTALL_DIR="$VENDOR_DIR/hunspell"
+CACHE_FILE="$CACHE_DIR/hunspell.tar.gz"
+
+if [ ! -f $CACHE_FILE ]; then
+  
+  echo "-----> Extracting Hunspell"
+  cd $(pwd)/vendor/hunspell
+  tar -zxvf hunspell-1.7.1.tar.gz | indent
+
+  echo "-----> Building Hunspell"
+  cd hunspell-1.7.1
+  export CPPFLAGS="-I$INSTALL_DIR/include"
+  export LDFLAGS="-L$INSTALL_DIR/lib"
+  ./configure --prefix=$INSTALL_DIR
+  make && make install
+  cd ..
+  rm -rf hunspell-1.7.1
+
+  # cache for future deploys
+  echo "-----> Caching Hunspell installation"
+  cd $VENDOR_DIR
+  REL_INSTALL_DIR="hunspell"
+  tar czf $REL_INSTALL_DIR.tar.gz $REL_INSTALL_DIR
+  mv $REL_INSTALL_DIR.tar.gz $CACHE_FILE
+
+else
+  # cache exists, extract it
+  echo "-----> Extracting Hunspell $CACHE_FILE => $VENDOR_DIR"
+  tar xzf $CACHE_FILE -C $VENDOR_DIR
+fi
+
+# update PATH and LD_LIBRARY_PATH
+echo "-----> Updating environment variables"
+PROFILE_PATH="$BUILD_DIR/.profile.d/hunspell.sh"
+ACTUAL_INSTALL_PATH="$HOME/vendor/hunspell"
+mkdir -p $(dirname $PROFILE_PATH)
+echo "export PATH=$ACTUAL_INSTALL_PATH/bin:\$PATH" >> $PROFILE_PATH
+echo "export LD_LIBRARY_PATH=$ACTUAL_INSTALL_PATH/lib:\$LD_LIBRARY_PATH" >> $PROFILE_PATH
+
